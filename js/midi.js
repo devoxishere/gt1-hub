@@ -119,25 +119,51 @@ class MIDIController {
         if (!this.usbDevice) return;
 
         try {
-            // BOSS GT-1 MIDI usually expects 4-byte packets over USB Bulk
-            // [Cable Number + Code Index | Status | Data1 | Data2]
-            const usbPacket = new Uint8Array([0x0C, data[0], data[1], 0x00]);
+            if (!this.usbDevice.opened) {
+                await this.usbDevice.open();
+                this.log("USB Device Opened", "info");
+            }
 
-            if (!this.usbDevice.opened) await this.usbDevice.open();
+            if (this.usbDevice.configuration === null) {
+                await this.usbDevice.selectConfiguration(1);
+                this.log("Configuration 1 selected", "info");
+            }
 
-            // Attempt to find the MIDI interface (usually the last one for Roland/Boss)
-            const interfaceNum = this.usbDevice.configurations[0].interfaces.length - 1;
+            const interfaces = this.usbDevice.configuration.interfaces;
+            let success = false;
 
-            await this.usbDevice.selectConfiguration(1);
-            await this.usbDevice.claimInterface(interfaceNum);
+            // Iterate through ALL interfaces to find one we can claim
+            for (let i = 0; i < interfaces.length; i++) {
+                try {
+                    this.log(`Probing Interface ${i}...`, "info");
 
-            // Transfer to the Bulk Out endpoint (usually 0x02 or 0x03)
-            await this.usbDevice.transferOut(interfaceNum + 1, usbPacket);
-            this.log(`Direct USB MIDI Sent: PC ${data[1]}`, "success");
+                    // Release if already claimed by someone else (if possible)
+                    // But usually we just try to claim
+                    await this.usbDevice.claimInterface(i);
+
+                    const endpoints = interfaces[i].alternate.endpoints;
+                    const outEndpoint = endpoints.find(e => e.direction === 'out');
+
+                    if (outEndpoint) {
+                        const usbPacket = new Uint8Array([0x0C, data[0], data[1], 0x00]);
+                        await this.usbDevice.transferOut(outEndpoint.endpointNumber, usbPacket);
+                        this.log(`SUCCESS! Sent via Interface ${i}, EP ${outEndpoint.endpointNumber}`, "success");
+                        success = true;
+                        // Keep this interface claimed for future sends
+                        break;
+                    } else {
+                        await this.usbDevice.releaseInterface(i);
+                    }
+                } catch (e) {
+                    this.log(`Interface ${i} busy or incompatible: ${e.message}`, "info");
+                }
+            }
+
+            if (!success) {
+                throw new Error("Android OS is locking all USB interfaces. Try changing USB mode to 'Charging' in system settings.");
+            }
         } catch (err) {
             this.log(`Direct USB Error: ${err.message}`, "error");
-            // If claiming fails, some devices need specific interface numbers
-            this.log("Try reconnecting USB cable or restarting App.", "info");
         }
     }
 
