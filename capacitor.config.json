@@ -1,0 +1,6 @@
+{
+  "appId": "com.devox.gt1manager",
+  "appName": "GT1 Bank Manager",
+  "webDir": "www",
+  "bundledWebRuntime": false
+}
