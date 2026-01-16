@@ -78,9 +78,12 @@ class GT1App {
         try {
             this.log("Opening USB Device Picker...");
             const device = await navigator.usb.requestDevice({ filters: [] });
-            this.log(`USB Device Selected: ${device.productName} (VID:${device.vendorId})`, 'success');
-            this.log("Attempting MIDI refresh after pairing...", "info");
-            setTimeout(() => this.midi.scanPorts(), 1000);
+            this.log(`USB Device Selected: ${device.productName}`, 'success');
+
+            this.midi.setUSBDevice(device);
+            this.handleConnectionChange(true);
+
+            this.log("Direct USB Mode Active. Try switching a patch.", "success");
         } catch (err) {
             this.log(`USB Pairing Cancelled/Failed: ${err.message}`, 'error');
         }

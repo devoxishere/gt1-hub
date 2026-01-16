@@ -12,6 +12,12 @@ class MIDIController {
         this.onStatusChange = null;
         this.onPatchUpdate = null;
         this.onLog = null;
+        this.usbDevice = null; // WebUSB device
+    }
+
+    setUSBDevice(device) {
+        this.usbDevice = device;
+        this.isConnected = true;
     }
 
     log(msg, type) {
@@ -85,15 +91,54 @@ class MIDIController {
      * @param {number} patchNumber 1 to 99 (User)
      */
     sendProgramChange(patchNumber) {
-        if (!this.output || !this.isConnected) return false;
-
-        // MIDI Program Change status byte for Channel 1 is 0xC0
-        // Data1 is the program number (0-98 for patches 1-99)
         const programValue = Math.min(Math.max(patchNumber - 1, 0), 98);
-        this.output.send([0xC0, programValue]);
+        const midiMessage = [0xC0, programValue];
 
-        this.currentPatch = patchNumber;
-        return true;
+        // Method 1: Try Web MIDI API
+        if (this.output && this.isConnected) {
+            try {
+                this.output.send(midiMessage);
+                this.currentPatch = patchNumber;
+                return true;
+            } catch (e) {
+                this.log("Web MIDI send failed, trying Direct USB...", "info");
+            }
+        }
+
+        // Method 2: Try Direct WebUSB (For Android/Boss Vendor mode)
+        if (this.usbDevice) {
+            this.sendDirectUSB(midiMessage);
+            this.currentPatch = patchNumber;
+            return true;
+        }
+
+        return false;
+    }
+
+    async sendDirectUSB(data) {
+        if (!this.usbDevice) return;
+
+        try {
+            // BOSS GT-1 MIDI usually expects 4-byte packets over USB Bulk
+            // [Cable Number + Code Index | Status | Data1 | Data2]
+            const usbPacket = new Uint8Array([0x0C, data[0], data[1], 0x00]);
+
+            if (!this.usbDevice.opened) await this.usbDevice.open();
+
+            // Attempt to find the MIDI interface (usually the last one for Roland/Boss)
+            const interfaceNum = this.usbDevice.configurations[0].interfaces.length - 1;
+
+            await this.usbDevice.selectConfiguration(1);
+            await this.usbDevice.claimInterface(interfaceNum);
+
+            // Transfer to the Bulk Out endpoint (usually 0x02 or 0x03)
+            await this.usbDevice.transferOut(interfaceNum + 1, usbPacket);
+            this.log(`Direct USB MIDI Sent: PC ${data[1]}`, "success");
+        } catch (err) {
+            this.log(`Direct USB Error: ${err.message}`, "error");
+            // If claiming fails, some devices need specific interface numbers
+            this.log("Try reconnecting USB cable or restarting App.", "info");
+        }
     }
 
     handleMessage(msg) {
