@@ -1,0 +1,22 @@
+{
+    "name": "GT-1 Bank Manager",
+    "short_name": "GT-1 Banks",
+    "description": "Premium Bank Manager for BOSS GT-1 Guitar Processor",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "background_color": "#0f111a",
+    "theme_color": "#1976D2",
+    "orientation": "any",
+    "icons": [
+        {
+            "src": "icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

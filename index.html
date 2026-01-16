@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>GT-1 Bank Manager</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1976D2">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="app" class="app-container">
+        <!-- Header Section -->
+        <header class="app-header">
+            <div class="logo-area">
+                <span class="guitar-emoji">🎸</span>
+                <h1>GT-1 <span>Bank Manager</span></h1>
+            </div>
+            <div class="connection-status" id="connection-status">
+                <div class="status-indicator">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Scanning...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Dashboard -->
+        <main class="main-content">
+            <!-- Sidebar / Bank Selector -->
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <h2>BANKS</h2>
+                </div>
+                <nav class="bank-selector" id="bank-selector">
+                    <!-- Banks injected via JS -->
+                </nav>
+            </aside>
+
+            <!-- Center View / Patch Grid -->
+            <section class="viewport">
+                <div class="toolbar">
+                    <div class="mode-selector">
+                        <button class="mode-btn active" id="mode-bank">Bank Mode</button>
+                        <button class="mode-btn" id="mode-setlist">Setlist Mode</button>
+                    </div>
+                    <div class="action-buttons">
+                        <button class="toolbar-btn" id="btn-export" title="Export Settings">
+                            <span class="btn-icon">📥</span> Export
+                        </button>
+                        <button class="toolbar-btn" id="btn-import" title="Import Settings">
+                            <span class="btn-icon">📤</span> Import
+                        </button>
+                    </div>
+                </div>
+
+                <div class="view-container">
+                    <div class="patch-grid" id="patch-grid">
+                        <!-- Patches injected via JS -->
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer / Current Status -->
+        <footer class="app-footer">
+            <div class="active-patch-display" id="active-patch-display">
+                <span class="label">ACTIVE PATCH</span>
+                <span class="patch-id" id="current-patch-id">--</span>
+                <span class="patch-name" id="current-patch-name">No Device Selected</span>
+            </div>
+        </footer-container>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-container"></div>
+
+    <!-- Scripts -->
+    <script src="js/midi.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('SW registered'))
+                    .catch(err => console.log('SW error', err));
+            });
+        }
+    </script>
+</body>
+</html>
