@@ -25,6 +25,11 @@ class MIDIController {
     }
 
     async init() {
+        const isCapacitor = window.Capacitor !== undefined;
+        if (isCapacitor) {
+            this.log('Running in Native App environment (Capacitor)', 'info');
+        }
+
         if (!navigator.requestMIDIAccess) {
             this.log('Web MIDI API not supported in this browser', 'error');
             return false;
