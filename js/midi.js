@@ -11,43 +11,57 @@ class MIDIController {
         this.isConnected = false;
         this.onStatusChange = null;
         this.onPatchUpdate = null;
+        this.onLog = null;
+    }
+
+    log(msg, type) {
+        if (this.onLog) this.onLog(msg, type);
     }
 
     async init() {
         if (!navigator.requestMIDIAccess) {
-            console.error('Web MIDI API not supported');
+            this.log('Web MIDI API not supported in this browser', 'error');
             return false;
         }
 
         try {
+            this.log("Acquiring MIDI Access...");
             this.midiAccess = await navigator.requestMIDIAccess({ sysex: true });
-            this.midiAccess.onstatechange = (e) => this.scanPorts();
+            this.midiAccess.onstatechange = (e) => {
+                this.log(`MIDI State Change: ${e.port.name} is now ${e.port.state}`, 'info');
+                this.scanPorts();
+            };
             this.scanPorts();
             return true;
         } catch (err) {
-            console.error('MIDI connection failed:', err);
+            this.log('MIDI Permission Refused: ' + err.message, 'error');
             return false;
         }
     }
 
     scanPorts() {
         let found = false;
-        console.log("Scanning MIDI ports...");
+        this.log("Scanning Ports...", "info");
 
         if (!this.midiAccess) return;
 
         const outputs = Array.from(this.midiAccess.outputs.values());
         const inputs = Array.from(this.midiAccess.inputs.values());
 
-        console.log("Available Outputs:", outputs.map(o => o.name));
-        console.log("Available Inputs:", inputs.map(i => i.name));
+        this.log(`Ports Found: OUT[${outputs.length}] IN[${inputs.length}]`, 'info');
+
+        if (outputs.length > 0) {
+            this.log(`OUT names: ${outputs.map(o => o.name).join(' | ')}`, 'info');
+        }
 
         // Scan Outputs - Be more generic in matching
         for (let output of outputs) {
             const name = output.name.toLowerCase();
+            this.log(`Testing Output: ${output.name}`, 'info');
             if (name.includes('gt-1') || name.includes('boss') || name.includes('roland') || name.includes('midi')) {
                 this.output = output;
                 found = true;
+                this.log(`Matched Output: ${output.name}`, 'success');
                 break;
             }
         }

@@ -16,19 +16,46 @@ class GT1App {
             currentPatchId: document.getElementById('current-patch-id'),
             currentPatchName: document.getElementById('current-patch-name'),
             btnExport: document.getElementById('btn-export'),
-            btnImport: document.getElementById('btn-import')
+            btnImport: document.getElementById('btn-import'),
+            debugLog: document.getElementById('debug-log')
         };
 
         this.init();
     }
 
+    log(msg, type = 'info') {
+        const div = document.createElement('div');
+        const color = type === 'error' ? '#ff5252' : (type === 'success' ? '#4caf50' : '#0f0');
+        div.style.color = color;
+        div.textContent = `> [${new Date().toLocaleTimeString()}] ${msg}`;
+        if (this.els.debugLog) {
+            this.els.debugLog.appendChild(div);
+            this.els.debugLog.scrollTop = this.els.debugLog.scrollHeight;
+        }
+        console.log(`[APP LOG] ${msg}`);
+    }
+
     async init() {
+        this.log("Starting GT1 Bank Manager v1.0.2...");
+
         // Setup MIDI callbacks
-        this.midi.onStatusChange = (connected) => this.handleConnectionChange(connected);
+        this.midi.onStatusChange = (connected, deviceList) => {
+            this.handleConnectionChange(connected, deviceList);
+            if (connected) {
+                this.log(`CONNECTED: ${this.midi.output.name}`, 'success');
+            } else if (deviceList) {
+                this.log(`No match in found devices: ${deviceList}`, 'info');
+            }
+        };
         this.midi.onPatchUpdate = (patchId) => this.updateActivePatchUI(patchId);
+        this.midi.onLog = (msg, type) => this.log(msg, type);
 
         // Initialize MIDI
-        await this.midi.init();
+        this.log("Checking Web MIDI Access...");
+        const success = await this.midi.init();
+        if (!success) {
+            this.log("FAILED to initialize MIDI. Check permissions or Chrome support.", "error");
+        }
 
         // Setup Event Listeners
         this.setupListeners();
