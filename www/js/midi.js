@@ -110,7 +110,14 @@ class MIDIController {
             }
         }
 
-        // Method 2: Try Direct WebUSB (For Android/Boss Vendor mode)
+        // Method 2: Try Native Android Bridge (APK only)
+        if (window.NativeUSB) {
+            window.NativeUSB.sendProgramChange(patchNumber);
+            this.currentPatch = patchNumber;
+            return true;
+        }
+
+        // Method 3: Try Direct WebUSB (For Browser)
         if (this.usbDevice) {
             this.sendDirectUSB(midiMessage);
             this.currentPatch = patchNumber;

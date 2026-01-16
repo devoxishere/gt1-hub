@@ -71,6 +71,12 @@ class GT1App {
     }
 
     async pairUSB() {
+        if (window.NativeUSB) {
+            this.log("Initializing Native USB Bridge...");
+            window.NativeUSB.connect();
+            return;
+        }
+
         if (!navigator.usb) {
             this.log("WebUSB not supported in this browser.", "error");
             return;
