@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>GT-1 Bank Manager</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1976D2">
@@ -11,13 +13,16 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
 </head>
+
 <body>
     <div id="app" class="app-container">
         <!-- Header Section -->
         <header class="app-header">
             <div class="logo-area">
                 <span class="guitar-emoji">🎸</span>
-                <h1>GT-1 <span>Bank Manager</span></h1>
+                <h1>GT-1 <span>Bank Manager</span> <small id="app-version"
+                        style="font-size: 10px; opacity: 0.5; font-weight: 300; vertical-align: middle; margin-left: 8px;">v1.0.1</small>
+                </h1>
             </div>
             <div class="connection-status" id="connection-status">
                 <div class="status-indicator">
@@ -71,7 +76,7 @@
                 <span class="patch-id" id="current-patch-id">--</span>
                 <span class="patch-name" id="current-patch-name">No Device Selected</span>
             </div>
-        </footer-container>
+            </footer-container>
     </div>
 
     <!-- Modals -->
@@ -91,4 +96,5 @@
         }
     </script>
 </body>
+
 </html>
