@@ -28,6 +28,7 @@ public class MainActivity extends BridgeActivity {
     private UsbDeviceConnection usbConnection;
     private UsbEndpoint outEndpoint;
     private UsbInterface usbInterface;
+    private boolean isReceiverRegistered = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,24 +36,17 @@ public class MainActivity extends BridgeActivity {
         usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
 
         final WebView webView = getBridge().getWebView();
-        webView.getSettings().setJavaScriptEnabled(true);
         webView.addJavascriptInterface(new NativeBridge(), "NativeUSB");
-        
-        Log.d("GT1_NATIVE", "MainActivity Created, NativeUSB Interface injected");
     }
 
     public class NativeBridge {
         @JavascriptInterface
         public void connect() {
-            sendToJS("Searching for Roland/BOSS devices (VID: 1410/0x0582)...");
+            sendToJS("Searching for Roland/BOSS devices...");
             
             HashMap<String, UsbDevice> deviceList = usbManager.getDeviceList();
-            Log.d("GT1_NATIVE", "Devices found: " + deviceList.size());
-            
             targetDevice = null;
             for (UsbDevice device : deviceList.values()) {
-                Log.d("GT1_NATIVE", "Checking Device: VID=" + device.getVendorId() + " PID=" + device.getProductId());
-                // Roland/BOSS Vendor ID = 1410
                 if (device.getVendorId() == 1410 || device.getVendorId() == 0x0582) {
                     targetDevice = device;
                     break;
@@ -60,41 +54,44 @@ public class MainActivity extends BridgeActivity {
             }
 
             if (targetDevice != null) {
-                sendToJS("Found GT-1! Requesting system permission...");
-                requestPermission();
+                if (usbManager.hasPermission(targetDevice)) {
+                    sendToJS("Permission already granted. Setting up...");
+                    setupUsb(targetDevice);
+                } else {
+                    sendToJS("Requesting system permission...");
+                    requestPermission();
+                }
             } else {
-                sendToJS("No BOSS GT-1 found. Devices seen: " + deviceList.size() + ". Check OTG/Cable connection.");
+                sendToJS("No BOSS GT-1 found. Check OTG/Cable.");
             }
         }
 
         @JavascriptInterface
         public void sendProgramChange(int patch) {
-            if (usbConnection == null || outEndpoint == null) {
-                sendToJS("Error: USB not ready. Tap PAIR again.");
-                return;
-            }
-
-            // Standard MIDI Program Change packet: 1 byte header + 3 bytes MIDI
-            // 0x0C = Program Change (4 bytes total packet)
+            if (usbConnection == null || outEndpoint == null) return;
             byte[] packet = new byte[]{0x0C, (byte) 0xC0, (byte) (patch - 1), 0x00};
-            
-            int result = usbConnection.bulkTransfer(outEndpoint, packet, packet.length, 500);
-            if (result < 0) {
-                sendToJS("Transfer failed. Reconnecting...");
-                connect(); // Auto retry
-            }
+            usbConnection.bulkTransfer(outEndpoint, packet, packet.length, 500);
         }
     }
 
     private void requestPermission() {
+        // Register receiver BEFORE requesting permission
+        if (!isReceiverRegistered) {
+            IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(usbReceiver, filter, Context.RECEIVER_EXPORTED);
+            } else {
+                registerReceiver(usbReceiver, filter);
+            }
+            isReceiverRegistered = true;
+        }
+
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             flags |= PendingIntent.FLAG_MUTABLE;
         }
         
         PendingIntent permissionIntent = PendingIntent.getBroadcast(this, 0, new Intent(ACTION_USB_PERMISSION), flags);
-        IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
-        registerReceiver(usbReceiver, filter);
         usbManager.requestPermission(targetDevice, permissionIntent);
     }
 
@@ -105,26 +102,22 @@ public class MainActivity extends BridgeActivity {
                 synchronized (this) {
                     UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
                     if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-                        if (device != null) {
-                            setupUsb(device);
-                        }
+                        if (device != null) setupUsb(device);
                     } else {
-                        sendToJS("Permission DENIED by user.");
+                        sendToJS("PERMISSION DENIED");
                     }
                 }
-                unregisterReceiver(this);
             }
         }
     };
 
     private void setupUsb(UsbDevice device) {
         boolean foundEp = false;
-        // Search all interfaces for a MIDI OUT endpoint
         for (int i = 0; i < device.getInterfaceCount(); i++) {
             UsbInterface itf = device.getInterface(i);
             for (int j = 0; j < itf.getEndpointCount(); j++) {
                 UsbEndpoint ep = itf.getEndpoint(j);
-                if (ep.getDirection() == UsbConstants.USB_DIR_OUT && ep.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK) {
+                if (ep.getDirection() == UsbConstants.USB_DIR_OUT) {
                     usbInterface = itf;
                     outEndpoint = ep;
                     foundEp = true;
@@ -134,16 +127,11 @@ public class MainActivity extends BridgeActivity {
             if (foundEp) break;
         }
 
-        if (!foundEp) {
-            sendToJS("Interface Error: No MIDI OUT endpoint found.");
-            return;
-        }
-
         usbConnection = usbManager.openDevice(device);
         if (usbConnection != null && usbConnection.claimInterface(usbInterface, true)) {
             sendToJS("NATIVE_CONNECTED: BOSS GT-1 ready.");
         } else {
-            sendToJS("System error: Could not claim USB interface.");
+            sendToJS("Failed to claim USB interface.");
         }
     }
 
@@ -151,5 +139,14 @@ public class MainActivity extends BridgeActivity {
         runOnUiThread(() -> {
             getBridge().getWebView().evaluateJavascript("if(window.app) window.app.log('Native: " + msg + "')", null);
         });
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (isReceiverRegistered) {
+            unregisterReceiver(usbReceiver);
+            isReceiverRegistered = false;
+        }
     }
 }
