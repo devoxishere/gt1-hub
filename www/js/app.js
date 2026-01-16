@@ -95,6 +95,14 @@ class GT1App {
         }
     }
 
+    onNativeConnect(deviceName) {
+        this.log(`NATIVE_CONNECTED: ${deviceName}`, 'success');
+        this.els.statusIndicator.classList.add('connected');
+        this.els.statusText.textContent = 'Connected: ' + deviceName;
+        // Mock a MIDI output for logic consistency
+        this.midi.isConnected = true;
+    }
+
     handleConnectionChange(connected, deviceList) {
         if (connected) {
             this.els.statusIndicator.classList.add('connected');

@@ -47,6 +47,7 @@ public class MainActivity extends BridgeActivity {
             HashMap<String, UsbDevice> deviceList = usbManager.getDeviceList();
             targetDevice = null;
             for (UsbDevice device : deviceList.values()) {
+                // VID 1410 (0x0582) is Roland/Boss
                 if (device.getVendorId() == 1410 || device.getVendorId() == 0x0582) {
                     targetDevice = device;
                     break;
@@ -69,8 +70,10 @@ public class MainActivity extends BridgeActivity {
         @JavascriptInterface
         public void sendProgramChange(int patch) {
             if (usbConnection == null || outEndpoint == null) return;
+            // CIN 0x0C + Status 0xC0 + Data 0xXX + Data 0x00
             byte[] packet = new byte[]{0x0C, (byte) 0xC0, (byte) (patch - 1), 0x00};
-            usbConnection.bulkTransfer(outEndpoint, packet, packet.length, 500);
+            int res = usbConnection.bulkTransfer(outEndpoint, packet, packet.length, 500);
+            Log.d("GT1_NATIVE", "Transfer result: " + res);
         }
     }
 
@@ -112,14 +115,17 @@ public class MainActivity extends BridgeActivity {
 
     private void setupUsb(UsbDevice device) {
         boolean foundEp = false;
+        // Search specifically for the MIDI interface (usually the 2nd one in Vendor mode)
         for (int i = 0; i < device.getInterfaceCount(); i++) {
             UsbInterface itf = device.getInterface(i);
+            // Look for Bulk OUT endpoint
             for (int j = 0; j < itf.getEndpointCount(); j++) {
                 UsbEndpoint ep = itf.getEndpoint(j);
-                if (ep.getDirection() == UsbConstants.USB_DIR_OUT) {
+                if (ep.getDirection() == UsbConstants.USB_DIR_OUT && ep.getType() == UsbConstants.USB_ENDPOINT_XFER_BULK) {
                     usbInterface = itf;
                     outEndpoint = ep;
                     foundEp = true;
+                    sendToJS("Targeting Interface " + i + ", Endpoint " + ep.getAddress());
                     break;
                 }
             }
@@ -128,7 +134,11 @@ public class MainActivity extends BridgeActivity {
 
         usbConnection = usbManager.openDevice(device);
         if (usbConnection != null && usbConnection.claimInterface(usbInterface, true)) {
-            sendToJS("NATIVE_CONNECTED: BOSS GT-1 ready.");
+            // Signal JS to update UI state
+            runOnUiThread(() -> {
+                getBridge().getWebView().evaluateJavascript("if(window.app) window.app.onNativeConnect('" + device.getProductName() + "')", null);
+            });
+            sendToJS("NATIVE_CONNECTED: " + device.getProductName());
         } else {
             sendToJS("Failed to claim USB interface.");
         }
@@ -146,6 +156,10 @@ public class MainActivity extends BridgeActivity {
         if (isReceiverRegistered) {
             unregisterReceiver(usbReceiver);
             isReceiverRegistered = false;
+        }
+        if (usbConnection != null) {
+            usbConnection.releaseInterface(usbInterface);
+            usbConnection.close();
         }
     }
 }
