@@ -75,7 +75,6 @@ public class MainActivity extends BridgeActivity {
     }
 
     private void requestPermission() {
-        // Register receiver BEFORE requesting permission
         if (!isReceiverRegistered) {
             IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -142,7 +141,7 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
-    protected void onDestroy() {
+    public void onDestroy() {
         super.onDestroy();
         if (isReceiverRegistered) {
             unregisterReceiver(usbReceiver);
