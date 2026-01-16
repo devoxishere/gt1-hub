@@ -43,13 +43,15 @@ class GT1App {
         this.els.btnImport.addEventListener('click', () => this.importData());
     }
 
-    handleConnectionChange(connected) {
+    handleConnectionChange(connected, deviceList) {
         if (connected) {
             this.els.statusIndicator.classList.add('connected');
-            this.els.statusText.textContent = 'GT-1 Connected';
+            this.els.statusText.textContent = 'Connected: ' + (this.midi.output ? this.midi.output.name : 'Unknown');
         } else {
             this.els.statusIndicator.classList.remove('connected');
-            this.els.statusText.textContent = 'Searching for GT-1...';
+            const list = deviceList ? ` (Found: ${deviceList})` : '';
+            this.els.statusText.textContent = 'No BOSS GT-1 found' + list;
+            console.log("Status: Not connected. Devices seen:", deviceList);
         }
     }
 

@@ -32,10 +32,20 @@ class MIDIController {
 
     scanPorts() {
         let found = false;
-        
-        // Scan Outputs
-        for (let output of this.midiAccess.outputs.values()) {
-            if (output.name.toLowerCase().includes('gt-1') || output.name.toLowerCase().includes('boss')) {
+        console.log("Scanning MIDI ports...");
+
+        if (!this.midiAccess) return;
+
+        const outputs = Array.from(this.midiAccess.outputs.values());
+        const inputs = Array.from(this.midiAccess.inputs.values());
+
+        console.log("Available Outputs:", outputs.map(o => o.name));
+        console.log("Available Inputs:", inputs.map(i => i.name));
+
+        // Scan Outputs - Be more generic in matching
+        for (let output of outputs) {
+            const name = output.name.toLowerCase();
+            if (name.includes('gt-1') || name.includes('boss') || name.includes('roland') || name.includes('midi')) {
                 this.output = output;
                 found = true;
                 break;
@@ -43,8 +53,9 @@ class MIDIController {
         }
 
         // Scan Inputs
-        for (let input of this.midiAccess.inputs.values()) {
-            if (input.name.toLowerCase().includes('gt-1') || input.name.toLowerCase().includes('boss')) {
+        for (let input of inputs) {
+            const name = input.name.toLowerCase();
+            if (name.includes('gt-1') || name.includes('boss') || name.includes('roland') || name.includes('midi')) {
                 this.input = input;
                 this.input.onmidimessage = (msg) => this.handleMessage(msg);
                 break;
@@ -52,7 +63,7 @@ class MIDIController {
         }
 
         this.isConnected = found;
-        if (this.onStatusChange) this.onStatusChange(this.isConnected);
+        if (this.onStatusChange) this.onStatusChange(this.isConnected, outputs.map(o => o.name).join(', '));
     }
 
     /**
@@ -66,14 +77,14 @@ class MIDIController {
         // Data1 is the program number (0-98 for patches 1-99)
         const programValue = Math.min(Math.max(patchNumber - 1, 0), 98);
         this.output.send([0xC0, programValue]);
-        
+
         this.currentPatch = patchNumber;
         return true;
     }
 
     handleMessage(msg) {
         const [status, data1, data2] = msg.data;
-        
+
         // Check for Program Change on Channel 1 (0xC0 to 0xCF)
         if ((status & 0xF0) === 0xC0) {
             const patchReceived = data1 + 1;
