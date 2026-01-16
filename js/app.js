@@ -70,6 +70,22 @@ class GT1App {
         this.els.btnImport.addEventListener('click', () => this.importData());
     }
 
+    async pairUSB() {
+        if (!navigator.usb) {
+            this.log("WebUSB not supported in this browser.", "error");
+            return;
+        }
+        try {
+            this.log("Opening USB Device Picker...");
+            const device = await navigator.usb.requestDevice({ filters: [] });
+            this.log(`USB Device Selected: ${device.productName} (VID:${device.vendorId})`, 'success');
+            this.log("Attempting MIDI refresh after pairing...", "info");
+            setTimeout(() => this.midi.scanPorts(), 1000);
+        } catch (err) {
+            this.log(`USB Pairing Cancelled/Failed: ${err.message}`, 'error');
+        }
+    }
+
     handleConnectionChange(connected, deviceList) {
         if (connected) {
             this.els.statusIndicator.classList.add('connected');
